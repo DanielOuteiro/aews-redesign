@@ -1317,7 +1317,6 @@ const MapBaseLayer = memo(function MapBaseLayer({ geographyPaths, graticulePath,
 })
 
 const MapMarkerLayer = memo(function MapMarkerLayer({
-  activePlaneHex,
   isNarrowLayout,
   markerHaloRadius,
   markerHitRadius,
@@ -1326,12 +1325,13 @@ const MapMarkerLayer = memo(function MapMarkerLayer({
   onMarkerActivate,
   onMarkerHoverEnd,
   onMarkerHoverStart,
+  selectedPlaneHex,
 }) {
   return markers.map((marker) => (
     <g
       key={marker.hex}
       data-plane-hex={marker.hex}
-      className={`map-marker${marker.hex === activePlaneHex ? ' map-marker-active' : ''}${isNarrowLayout ? ' map-marker-touch' : ''}`}
+      className={`map-marker${marker.hex === selectedPlaneHex ? ' map-marker-active' : ''}${isNarrowLayout ? ' map-marker-touch' : ''}`}
       transform={`translate(${marker.x} ${marker.y})`}
       onMouseEnter={isNarrowLayout ? undefined : () => onMarkerHoverStart(marker.hex)}
       onMouseLeave={isNarrowLayout ? undefined : () => onMarkerHoverEnd(marker.hex)}
@@ -1363,7 +1363,7 @@ const MapMarkerLayer = memo(function MapMarkerLayer({
       }}
       tabIndex={0}
       role="button"
-      aria-pressed={marker.hex === activePlaneHex}
+      aria-pressed={marker.hex === selectedPlaneHex}
       aria-label={marker.ariaLabel}
     >
       <g className="map-marker-visual">
@@ -1380,7 +1380,8 @@ const MapMarkerLayer = memo(function MapMarkerLayer({
 
 function GlobalMap({ aircraft }) {
   const isNarrowLayout = useIsNarrowLayout()
-  const [activePlaneHex, setActivePlaneHex] = useState(null)
+  const [selectedPlaneHex, setSelectedPlaneHex] = useState(null)
+  const [hoveredPlaneHex, setHoveredPlaneHex] = useState(null)
   const [mapTransform, setMapTransform] = useState(() => constrainMapTransform({
     scale: 1,
     translateX: 0,
@@ -1423,9 +1424,10 @@ function GlobalMap({ aircraft }) {
         .filter(Boolean),
     [aircraft, projection],
   )
-  const activePlane = useMemo(
-    () => aircraft.find((plane) => plane.hex === activePlaneHex) ?? null,
-    [activePlaneHex, aircraft],
+  const displayedPlaneHex = hoveredPlaneHex || selectedPlaneHex
+  const displayedPlane = useMemo(
+    () => aircraft.find((plane) => plane.hex === displayedPlaneHex) ?? null,
+    [displayedPlaneHex, aircraft],
   )
   const markerHaloRadius = isNarrowLayout ? 18 : 12
   const markerHitRadius = isNarrowLayout ? 30 : 16
@@ -1433,16 +1435,16 @@ function GlobalMap({ aircraft }) {
   const mapTransformValue = `matrix(${mapTransform.scale} 0 0 ${mapTransform.scale} ${mapTransform.translateX} ${mapTransform.translateY})`
   const markerCounterScale = String(1 / mapTransform.scale)
 
-  const toggleActivePlane = useCallback((planeHex) => {
-    setActivePlaneHex((currentHex) => (currentHex === planeHex ? null : planeHex))
+  const selectPlane = useCallback((planeHex) => {
+    setSelectedPlaneHex(planeHex)
   }, [])
 
   const showPlane = useCallback((planeHex) => {
-    setActivePlaneHex(planeHex)
+    setHoveredPlaneHex(planeHex)
   }, [])
 
   const hidePlane = useCallback((planeHex) => {
-    setActivePlaneHex((currentHex) => (currentHex === planeHex ? null : currentHex))
+    setHoveredPlaneHex((currentHex) => (currentHex === planeHex ? null : currentHex))
   }, [])
 
   function getSvgPoint(event) {
@@ -1587,9 +1589,7 @@ function GlobalMap({ aircraft }) {
     clearCurrentTextSelection()
 
     if (!panState.moved && panState.markerHex) {
-      toggleActivePlane(panState.markerHex)
-    } else if (!panState.moved) {
-      setActivePlaneHex(null)
+      selectPlane(panState.markerHex)
     }
   }
 
@@ -1619,29 +1619,29 @@ function GlobalMap({ aircraft }) {
             <span className="map-zoom-icon map-zoom-minus" aria-hidden="true" />
           </button>
         </div>
-        {activePlane ? (
+        {displayedPlane ? (
           <div className="map-hover-card map-hover-card-active">
             <>
               <div className="map-hover-header">
-                <strong>{activePlane.label || activePlane.registration || activePlane.hex?.toUpperCase()}</strong>
-                <span>{activePlane.registration || activePlane.hex?.toUpperCase() || 'Unknown aircraft'}</span>
+                <strong>{displayedPlane.label || displayedPlane.registration || displayedPlane.hex?.toUpperCase()}</strong>
+                <span>{displayedPlane.registration || displayedPlane.hex?.toUpperCase() || 'Unknown aircraft'}</span>
               </div>
               <dl className="map-hover-grid">
                 <div>
                   <dt>Last seen</dt>
-                  <dd>{formatTimestamp(activePlane.observed_at)}</dd>
+                  <dd>{formatTimestamp(displayedPlane.observed_at)}</dd>
                 </div>
                 <div>
                   <dt>Altitude</dt>
-                  <dd>{formatAltitude(activePlane.altitudeFt)}</dd>
+                  <dd>{formatAltitude(displayedPlane.altitudeFt)}</dd>
                 </div>
                 <div>
                   <dt>Speed</dt>
-                  <dd>{formatSpeed(activePlane.groundSpeedKt)}</dd>
+                  <dd>{formatSpeed(displayedPlane.groundSpeedKt)}</dd>
                 </div>
                 <div className="map-hover-coordinates">
                   <dt>Coordinates</dt>
-                  <dd>{formatCoordinates(activePlane.lat, activePlane.lon)}</dd>
+                  <dd>{formatCoordinates(displayedPlane.lat, displayedPlane.lon)}</dd>
                 </div>
               </dl>
             </>
@@ -1666,15 +1666,15 @@ function GlobalMap({ aircraft }) {
               isNarrowLayout={isNarrowLayout}
             />
             <MapMarkerLayer
-              activePlaneHex={activePlaneHex}
               isNarrowLayout={isNarrowLayout}
               markerHaloRadius={markerHaloRadius}
               markerHitRadius={markerHitRadius}
               markerIconScale={markerIconScale}
               markers={projectedAircraft}
-              onMarkerActivate={toggleActivePlane}
+              onMarkerActivate={selectPlane}
               onMarkerHoverEnd={hidePlane}
               onMarkerHoverStart={showPlane}
+              selectedPlaneHex={selectedPlaneHex}
             />
           </g>
         </svg>

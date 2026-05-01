@@ -676,6 +676,10 @@ html.emergency-color-scheme .map-control-button:hover {
   touch-action: manipulation;
 }
 
+.map-marker:focus {
+  outline: none;
+}
+
 .map-marker-hit {
   fill: rgba(0, 0, 0, 0.001);
   stroke: none;
@@ -686,6 +690,7 @@ html.emergency-color-scheme .map-control-button:hover {
 .map-marker:focus-visible .map-marker-plane,
 .map-marker-active .map-marker-plane {
   fill: #cc0000;
+  stroke: none;
 }
 
 .map-marker:hover .map-marker-halo,
