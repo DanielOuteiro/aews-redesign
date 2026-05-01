@@ -461,6 +461,37 @@ function buildTimeTicks(minTimestamp, maxTimestamp, tickCount = 5) {
   return ticks
 }
 
+function getLocalDateKey(timestamp) {
+  const date = new Date(timestamp)
+  const resolvedTimestamp = date.getTime()
+  if (!Number.isFinite(resolvedTimestamp)) {
+    return null
+  }
+
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+}
+
+function filterUniqueDayTicks(ticks) {
+  const seenDays = new Set()
+
+  return ticks.filter((tick) => {
+    const dayKey = getLocalDateKey(tick)
+    if (!dayKey || seenDays.has(dayKey)) {
+      return false
+    }
+
+    seenDays.add(dayKey)
+    return true
+  })
+}
+
+function buildArchiveTimeTicks(minTimestamp, maxTimestamp, windowDays, isNarrowLayout) {
+  const tickCount = isNarrowLayout ? 3 : windowDays <= 2 ? 6 : windowDays <= 3 ? 3 : 5
+  const ticks = buildTimeTicks(minTimestamp, maxTimestamp, tickCount)
+
+  return windowDays <= 2 ? ticks : filterUniqueDayTicks(ticks)
+}
+
 function buildSvgLinePath(data, xScale, yScale, accessor) {
   let path = ''
 
@@ -610,7 +641,7 @@ function ArchiveSvgChart({
     const yTicks = visibleYAxisTicks || domainTicks.map((value) => ({ value, label: yTickFormatter(value) }))
     const yMin = domainTicks[0]
     const yMax = domainTicks[domainTicks.length - 1]
-    const xTicks = buildTimeTicks(xMin, xMax, isNarrowLayout ? 3 : windowDays <= 3 ? 6 : 5)
+    const xTicks = buildArchiveTimeTicks(xMin, xMax, windowDays, isNarrowLayout)
     const xScale = (index) => margin.left + ((timestamps[index] - xMin) / Math.max(1, xMax - xMin)) * innerWidth
     const xScaleFromTimestamp = (timestamp) => margin.left + ((timestamp - xMin) / Math.max(1, xMax - xMin)) * innerWidth
     const yScale = (value) => margin.top + innerHeight - ((value - yMin) / Math.max(1e-9, yMax - yMin)) * innerHeight
