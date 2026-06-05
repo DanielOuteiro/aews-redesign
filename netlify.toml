@@ -1,0 +1,12 @@
+# Netlify deploy config for the AEWS redesign demo.
+# Builds the Vite client as a workspace from the repo root.
+# Uses --mode development so the build does not require the production
+# VITE_*_DASHBOARD_URL env guard; the app falls back to the public R2
+# dashboard snapshots at runtime, so the demo shows live data.
+
+[build]
+  command = "npm run build --workspace client -- --mode development"
+  publish = "client/dist"
+
+[build.environment]
+  NODE_VERSION = "22"

@@ -2,3 +2,6 @@
 /military/* / 301
 /untracked / 301
 /untracked/* / 301
+
+# SPA fallback: serve the app for client-routed paths (/signup, /manage, /admin, …)
+/*    /index.html   200
