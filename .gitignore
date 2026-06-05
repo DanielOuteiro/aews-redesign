@@ -15,3 +15,7 @@ config/opensky.credentials.json
 .DS_Store
 __pycache__/
 *.pyc
+
+# Design source (not tracked)
+AEWS.zip
+AEWS_extracted/

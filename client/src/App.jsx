@@ -24,12 +24,12 @@ const ARCHIVE_DAY_MS = 24 * 60 * 60 * 1000
 const ADSB_DATA_UNAVAILABLE_THRESHOLD_MS = ARCHIVE_DAY_MS
 
 const NARROW_HISTORY_BREAKPOINT = 820
-const CHART_TICK_COLOR = '#000000'
-const CHART_GRID_COLOR = '#d4d4d4'
-const CHART_PRIMARY_COLOR = '#0000ee'
-const CHART_PREDICTION_BAND_FILL = 'rgba(128, 128, 128, 0.18)'
-const CHART_HOLIDAY_REGION_FILL = 'rgba(255, 196, 0, 0.16)'
-const CHART_HOLIDAY_REGION_STROKE = 'rgba(160, 112, 0, 0.34)'
+const CHART_TICK_COLOR = '#98a4b3'
+const CHART_GRID_COLOR = 'rgba(255, 255, 255, 0.08)'
+const CHART_PRIMARY_COLOR = '#5ad1ff'
+const CHART_PREDICTION_BAND_FILL = 'rgba(255, 255, 255, 0.10)'
+const CHART_HOLIDAY_REGION_FILL = 'rgba(255, 174, 0, 0.16)'
+const CHART_HOLIDAY_REGION_STROKE = 'rgba(255, 174, 0, 0.40)'
 const CONCURRENT_WEEKLY_BASELINE_MODEL = 'all-history-weekly-baseline'
 const CONCURRENT_WEEKLY_DAY_RATIO_MODEL = 'weekly-baseline-prior-year-day-ratio'
 const CONCURRENT_WEEKLY_US_HOLIDAY_MODEL = 'weekly-baseline-us-holiday-adjusted'
@@ -867,9 +867,9 @@ function buildEmergencyLevelReferenceLines(strokeWidth) {
     return {
       value: level,
       label: String(level),
-      stroke: level === 1 ? '#666666' : '#8a8a8a',
+      stroke: level === 1 ? 'rgba(255, 255, 255, 0.34)' : 'rgba(255, 255, 255, 0.18)',
       strokeWidth,
-      opacity: level === 1 ? 0.68 : 0.44,
+      opacity: level === 1 ? 0.9 : 0.7,
     }
   })
 }
@@ -1129,7 +1129,7 @@ function ArchiveSvgChart({
             x2={chartState.width - chartState.margin.right}
             y1={chartState.yScale(0)}
             y2={chartState.yScale(0)}
-            stroke="#999999"
+            stroke="rgba(255, 255, 255, 0.22)"
             strokeDasharray="5 5"
           />
         ) : null}
@@ -1174,7 +1174,7 @@ function ArchiveSvgChart({
                 <text
                   x={xStart + 5}
                   y={chartState.margin.top + 14}
-                  fill="#6c4a00"
+                  fill="#ffce6a"
                   fontSize={chartState.tickFontSize}
                 >
                   {region.label}
@@ -1215,7 +1215,7 @@ function ArchiveSvgChart({
               x2={hoverX}
               y1={chartState.margin.top}
               y2={chartState.height - chartState.margin.bottom}
-              stroke="#666666"
+              stroke="rgba(255, 255, 255, 0.45)"
               strokeDasharray="4 4"
             />
             {lines.map((line) => {
@@ -1231,8 +1231,8 @@ function ArchiveSvgChart({
                   cy={chartState.yScale(value)}
                   r="3.5"
                   fill={line.stroke}
-                  stroke="#ffffff"
-                  strokeWidth="1"
+                  stroke="#0a0d11"
+                  strokeWidth="1.4"
                 />
               )
             })}
@@ -1242,8 +1242,8 @@ function ArchiveSvgChart({
                 cy={chartState.yScale(area.accessor(hoverSample))}
                 r="3.5"
                 fill={area.stroke}
-                stroke="#ffffff"
-                strokeWidth="1"
+                stroke="#0a0d11"
+                strokeWidth="1.4"
               />
             ) : null}
           </g>
@@ -1823,6 +1823,16 @@ function buildCombinedDashboardView(primaryDashboard, selectedCohorts, extraDash
   }
 }
 
+const THREAT_RAMP = ['#2fd47e', '#9ad13a', '#ffb22e', '#ff7a2e', '#ff3b30']
+const THREAT_NAMES = ['NOMINAL', 'ELEVATED', 'GUARDED', 'HIGH', 'IMMINENT']
+const THREAT_CONDITIONS = [
+  'Concurrent airborne count is within the expected band for this half-hour of the week.',
+  'Concurrent count is modestly above the expected band for this time of week.',
+  'Concurrent count is running well above the expected band and is being watched.',
+  'Concurrent count is far above expectation — an unusual amount of traffic is airborne.',
+  'Concurrent count is an extreme positive outlier under the calibrated model.',
+]
+
 function EmergencySummary({
   signal,
   latestSweep,
@@ -1835,15 +1845,40 @@ function EmergencySummary({
   const sigmaShift = signal?.sigmaShift ?? signal?.zScore ?? 0
   const deviationCount = Number(actualCount || 0) - Number(expectedCount || 0)
   const emergencyLevel = getEmergencyLevel(signal)
+  const conditionName = THREAT_NAMES[emergencyLevel - 1]
 
   return (
-    <section className={`panel dial-panel emergency-level-${emergencyLevel}`}>
-      <div className="panel-header">
-        <div>
-          <h2>
+    <>
+      <section
+        className={`panel ladder-panel emergency-level-${emergencyLevel}`}
+        style={{ '--lvl': THREAT_RAMP[emergencyLevel - 1] }}
+      >
+        <div className="panel-header">
+          <div><h2>Threat Ladder</h2></div>
+          <span className="panel-meta">CALIBRATED · TRAILING 1Y</span>
+        </div>
+        <div className="ladder-body">
+          <div className="ladder">
+            {THREAT_NAMES.map((name, index) => {
+              const level = index + 1
+              const on = level <= emergencyLevel
+              return (
+                <div
+                  key={name}
+                  className={`rung${on ? ' on' : ''}${level === emergencyLevel ? ' cur' : ''}`}
+                  style={on ? { color: THREAT_RAMP[index] } : undefined}
+                >
+                  <span className="lv">{level}</span>
+                  <span className="bar"><i style={{ background: THREAT_RAMP[index] }} /></span>
+                  <span className="nm">{name}</span>
+                </div>
+              )
+            })}
+          </div>
+          <div className="ladder-read">
             <button
               type="button"
-              className="emergency-level-trigger"
+              className="emergency-level-trigger big"
               onClick={onEmergencyLevelTap}
               onMouseDown={(event) => {
                 if (event.detail > 1) {
@@ -1852,40 +1887,51 @@ function EmergencySummary({
               }}
               aria-label={`Emergency level ${emergencyLevel} of 5`}
             >
-              Emergency level {emergencyLevel}/5
+              {emergencyLevel}<small>/5</small>
             </button>
-          </h2>
+            <div className="cond">CONDITION {conditionName}</div>
+            <div className="sub">{THREAT_CONDITIONS[emergencyLevel - 1]}</div>
+          </div>
         </div>
-      </div>
-      <div className="summary-text-block">
-        <p className="summary-count-line">
-          <strong>{formatCount(actualCount)}</strong>
-          {Number.isFinite(Number(trackedCount)) ? (
-            <>
-              /<strong>{formatCount(trackedCount)}</strong>
-            </>
+      </section>
+
+      <section className="panel readout-panel">
+        <div className="panel-header">
+          <div><h2>Live Readout</h2></div>
+          <span className="panel-meta">{latestSweep}</span>
+        </div>
+        <div className="stat-grid">
+          <div className="stat">
+            <div className="k">Planes airborne</div>
+            <div className="v">
+              {formatCount(actualCount)}
+              {Number.isFinite(Number(trackedCount)) ? <small> / {formatCount(trackedCount)}</small> : null}
+            </div>
+            <div className="meta">tracked cohort concurrent</div>
+          </div>
+          {maxSeatsAirborneEstimate ? (
+            <div
+              className="stat"
+              title={`Known capacities for ${formatCount(maxSeatsAirborneEstimate.knownAircraftCount)} of ${formatCount(maxSeatsAirborneEstimate.totalAircraftCount)} airborne aircraft; missing capacities are scaled by the known average.`}
+            >
+              <div className="k">Max people airborne</div>
+              <div className="v">{formatCount(maxSeatsAirborneEstimate.estimatedSeats)}</div>
+              <div className="meta">seat-capacity estimate</div>
+            </div>
           ) : null}
-          <AirplaneIcon className="summary-inline-icon summary-airplane-icon" />
-          {' planes airborne'}
-        </p>
-        {maxSeatsAirborneEstimate ? (
-          <p
-            className="summary-count-line"
-            title={`Known capacities for ${formatCount(maxSeatsAirborneEstimate.knownAircraftCount)} of ${formatCount(maxSeatsAirborneEstimate.totalAircraftCount)} airborne aircraft; missing capacities are scaled by the known average.`}
-          >
-            <strong>{formatCount(maxSeatsAirborneEstimate.estimatedSeats)}</strong>
-            <PersonIcon className="summary-inline-icon summary-person-icon" />
-            {' max people airborne'}
-          </p>
-        ) : null}
-        <p>
-          <strong>Deviation:</strong> {formatDelta(deviationCount)}
-          <AirplaneIcon className="summary-inline-icon summary-airplane-icon" />
-          ({formatSigned(sigmaShift)})
-        </p>
-        <p><strong>Last Update:</strong> {latestSweep}</p>
-      </div>
-    </section>
+          <div className="stat">
+            <div className="k">Deviation</div>
+            <div className={`v ${deviationCount >= 0 ? 'pos' : 'neg'}`}>{formatDelta(deviationCount)}</div>
+            <div className="meta">{formatSigned(sigmaShift)} vs expected</div>
+          </div>
+          <div className="stat">
+            <div className="k">Expected now</div>
+            <div className="v">{formatCount(expectedCount)}</div>
+            <div className="meta">weekly + holiday model</div>
+          </div>
+        </div>
+      </section>
+    </>
   )
 }
 
@@ -2451,7 +2497,7 @@ function createMapLibreEqualEarthStyle() {
         id: 'background',
         type: 'background',
         paint: {
-          'background-color': '#ffffff',
+          'background-color': '#080b0f',
         },
       },
       {
@@ -2459,8 +2505,8 @@ function createMapLibreEqualEarthStyle() {
         type: 'fill',
         source: 'equal-earth-sphere',
         paint: {
-          'fill-color': '#fafafa',
-          'fill-outline-color': '#999999',
+          'fill-color': '#0b1118',
+          'fill-outline-color': 'rgba(255, 255, 255, 0.12)',
         },
       },
       {
@@ -2468,7 +2514,7 @@ function createMapLibreEqualEarthStyle() {
         type: 'line',
         source: 'equal-earth-graticule',
         paint: {
-          'line-color': '#d9d9d9',
+          'line-color': 'rgba(255, 255, 255, 0.07)',
           'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.55, 4, 1],
           'line-opacity': 0.95,
         },
@@ -2479,7 +2525,7 @@ function createMapLibreEqualEarthStyle() {
         source: 'countries',
         'source-layer': 'country',
         paint: {
-          'fill-color': '#f2f2f2',
+          'fill-color': '#141b25',
         },
       },
       {
@@ -2487,7 +2533,7 @@ function createMapLibreEqualEarthStyle() {
         type: 'fill',
         source: 'equal-earth-supplemental-country-fill',
         paint: {
-          'fill-color': '#f2f2f2',
+          'fill-color': '#141b25',
           'fill-antialias': false,
         },
       },
@@ -2498,7 +2544,7 @@ function createMapLibreEqualEarthStyle() {
         'source-layer': 'country',
         filter: ['in', 'adm0_a3', 'ATA'],
         paint: {
-          'fill-color': '#f2f2f2',
+          'fill-color': '#141b25',
         },
       },
       {
@@ -2511,7 +2557,7 @@ function createMapLibreEqualEarthStyle() {
           'line-join': 'round',
         },
         paint: {
-          'line-color': '#b6b6b6',
+          'line-color': 'rgba(120, 200, 255, 0.22)',
           'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.38, 4, 0.78],
           'line-opacity': 0.84,
         },
@@ -2524,7 +2570,7 @@ function createMapLibreEqualEarthStyle() {
           'line-join': 'round',
         },
         paint: {
-          'line-color': '#b6b6b6',
+          'line-color': 'rgba(120, 200, 255, 0.22)',
           'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.38, 4, 0.78],
           'line-opacity': 0.84,
         },
@@ -2535,7 +2581,7 @@ function createMapLibreEqualEarthStyle() {
         source: 'countries',
         'source-layer': 'land-border-country',
         paint: {
-          'line-color': '#c6c6c6',
+          'line-color': 'rgba(120, 200, 255, 0.16)',
           'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.25, 4, 0.58],
           'line-opacity': 0.62,
         },
@@ -2545,7 +2591,7 @@ function createMapLibreEqualEarthStyle() {
         type: 'line',
         source: 'equal-earth-sphere',
         paint: {
-          'line-color': '#999999',
+          'line-color': 'rgba(255, 255, 255, 0.14)',
           'line-width': 1,
         },
       },
@@ -2553,7 +2599,7 @@ function createMapLibreEqualEarthStyle() {
   }
 }
 
-function createMapLibreAircraftSvg(fill, stroke = '#ffffff') {
+function createMapLibreAircraftSvg(fill, stroke = '#0a0d11') {
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="-12 -12 24 24">
       <path d="${AIRCRAFT_MARKER_PATH}" fill="${fill}" stroke="${stroke}" stroke-width="0.68" stroke-linejoin="round"/>
@@ -2561,7 +2607,7 @@ function createMapLibreAircraftSvg(fill, stroke = '#ffffff') {
   `
 }
 
-function createMapLibreDotSvg(fill, stroke = '#ffffff') {
+function createMapLibreDotSvg(fill, stroke = '#0a0d11') {
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="-12 -12 24 24">
       <circle cx="0" cy="0" r="5.2" fill="${fill}" stroke="${stroke}" stroke-width="1"/>
@@ -2589,10 +2635,10 @@ function addMapLibreSvgImage(map, id, svg, pixelRatio = 4) {
 
 function addMapLibreAircraftImages(map) {
   return Promise.all([
-    addMapLibreSvgImage(map, 'aircraft-business', createMapLibreAircraftSvg('#0000ee')),
-    addMapLibreSvgImage(map, 'aircraft-military', createMapLibreAircraftSvg('#000000')),
-    addMapLibreSvgImage(map, 'aircraft-active', createMapLibreAircraftSvg('#cc0000', '#ffffff')),
-    addMapLibreSvgImage(map, 'aircraft-untracked', createMapLibreDotSvg('#0000ee')),
+    addMapLibreSvgImage(map, 'aircraft-business', createMapLibreAircraftSvg('#5ad1ff')),
+    addMapLibreSvgImage(map, 'aircraft-military', createMapLibreAircraftSvg('#9b8cff')),
+    addMapLibreSvgImage(map, 'aircraft-active', createMapLibreAircraftSvg('#ffae00', '#0a0d11')),
+    addMapLibreSvgImage(map, 'aircraft-untracked', createMapLibreDotSvg('#5ad1ff')),
   ])
 }
 
@@ -2892,7 +2938,7 @@ function GlobalMap({ aircraft, dataUnavailable = false, liveStatus = null }) {
           type: 'circle',
           source: MAPLIBRE_AIRCRAFT_SOURCE_ID,
           paint: {
-            'circle-color': '#cc0000',
+            'circle-color': '#ffae00',
             'circle-radius': [
               'interpolate',
               ['linear'],
@@ -3117,14 +3163,6 @@ function ExternalLinkIcon() {
       <path d="M6 4H3.5A1.5 1.5 0 0 0 2 5.5v7A1.5 1.5 0 0 0 3.5 14h7a1.5 1.5 0 0 0 1.5-1.5V10" />
       <path d="M9 2h5v5" />
       <path d="M8 8 14 2" />
-    </svg>
-  )
-}
-
-function AirplaneIcon({ className }) {
-  return (
-    <svg className={className} viewBox="-10 -10 20 20" aria-hidden="true" focusable="false">
-      <path d={AIRCRAFT_MARKER_PATH} transform="rotate(90)" />
     </svg>
   )
 }
@@ -3999,7 +4037,7 @@ function SubscriberDailyChart({ title, data, series, valueFormatter = formatCoun
       </div>
       {data.length ? (
         <svg className="subscriber-chart-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title}>
-          <rect x={margin.left} y={margin.top} width={chartWidth} height={chartHeight} fill="#ffffff" />
+          <rect x={margin.left} y={margin.top} width={chartWidth} height={chartHeight} fill="rgba(255, 255, 255, 0.02)" />
           {yTicks.map((tick) => (
             <g key={tick}>
               <line
@@ -4007,7 +4045,7 @@ function SubscriberDailyChart({ title, data, series, valueFormatter = formatCoun
                 x2={margin.left + chartWidth}
                 y1={yScale(tick)}
                 y2={yScale(tick)}
-                stroke="#d4d4d4"
+                stroke="rgba(255, 255, 255, 0.08)"
               />
               <text x={margin.left - 8} y={yScale(tick) + 4} textAnchor="end">
                 {valueFormatter(tick)}
@@ -5619,25 +5657,25 @@ function AdminTestAlertPage() {
                   title="Daily Subscription Status"
                   data={subscriberDailyStats}
                   series={[
-                    { key: 'active', label: 'Active', color: '#00703c' },
-                    { key: 'pending', label: 'Pending', color: '#8a5a00' },
-                    { key: 'canceled', label: 'Canceled', color: '#b00020' },
+                    { key: 'active', label: 'Active', color: '#2fd47e' },
+                    { key: 'pending', label: 'Pending', color: '#ffb22e' },
+                    { key: 'canceled', label: 'Canceled', color: '#ff5a52' },
                   ]}
                 />
                 <SubscriberDailyChart
                   title="Daily Contact Channels"
                   data={subscriberDailyStats}
                   series={[
-                    { key: 'email', label: 'Email', color: '#0000ee' },
-                    { key: 'sms', label: 'SMS', color: '#7b2cbf' },
-                    { key: 'both', label: 'Both', color: '#008c8c' },
+                    { key: 'email', label: 'Email', color: '#5ad1ff' },
+                    { key: 'sms', label: 'SMS', color: '#b18bff' },
+                    { key: 'both', label: 'Both', color: '#2fd47e' },
                   ]}
                 />
                 <SubscriberDailyChart
                   title="Daily Gross Volume"
                   data={subscriberDailyStats}
                   valueFormatter={formatGrossVolume}
-                  series={[{ key: 'grossVolume', label: 'Active x $5', color: '#111111' }]}
+                  series={[{ key: 'grossVolume', label: 'Active x $5', color: '#e7edf4' }]}
                 />
               </div>
 
@@ -6066,9 +6104,21 @@ function DashboardApp({ dashboardUrl = DASHBOARD_URL, enableCohortControls = fal
 
     content = (
       <main className="app-shell">
-        <p className="signup-provider-notice homepage-signup-notice">
-          <a href="/signup">Sign up</a> for text message or email notifications.
-        </p>
+        <header className="sig-top">
+          <div className="mark">
+            <div className="glyph" aria-hidden="true">▲</div>
+            <div className="wordmark">AEWS<span> / APOCALYPSE EARLY WARNING SYSTEM</span></div>
+          </div>
+          <div className="feed">
+            <span className={adsbDataStatus.isUnavailable ? 'feed-stale' : ''}>
+              <span className="live-dot" aria-hidden="true" />
+              {adsbDataStatus.isUnavailable ? 'FEED STALE' : 'FEED LIVE'}
+            </span>
+            <span>SRC <b>ADS-B EXCHANGE</b></span>
+            <span>LAST SYNC <b>{formatTimestamp(liveStatus?.latestSampledAt || visibleDashboard?.current?.asOf)}</b></span>
+          </div>
+          <a className="notify" href="/signup">⊕ SUBSCRIBE · SMS / EMAIL</a>
+        </header>
 
         {error && !hasDashboard ? (
           <section className="status-banner status-banner-error">
@@ -6122,51 +6172,31 @@ function DashboardApp({ dashboardUrl = DASHBOARD_URL, enableCohortControls = fal
           </section>
         ) : null}
 
-        <section className="focus-grid">
-          <section className="panel hero-copy-panel">
-            <h1>Apocalypse Early Warning System</h1>
-            <p className="hero-caption">
-              {cohortCopy.heroCaption}
-            </p>
-            <p className="hero-credit">
-              built by{' '}
-              <a href="https://www.instagram.com/kcimc/" target="_blank" rel="noreferrer">
-                Kyle McDonald
-              </a>
-            </p>
-            <p className="hero-credit hero-link-row">
-              <a href="https://github.com/kylemcdonald/ews" target="_blank" rel="noreferrer">
-                GitHub
-              </a>{' '}
-              /{' '}
-              <a href="https://t.me/apocalypse_ews" target="_blank" rel="noreferrer">
-                Telegram
-              </a>{' '}
-              /{' '}
-              <a href="https://ews.kylemcdonald.net/rss.xml" target="_blank" rel="noreferrer">
-                RSS
-              </a>{' '}
-              /{' '}
-              <a href={DISCORD_BOT_URL} target="_blank" rel="noreferrer">
-                Discord
-              </a>
-            </p>
-          </section>
-          <div className="dial-stack">
-            {hasDashboard ? (
-              <EmergencySummary
-                signal={compositeSignal}
-                latestSweep={formatTimestamp(visibleDashboard.current?.asOf)}
-                actualCount={compositeSignal?.actualConcurrentCount}
-                expectedCount={compositeSignal?.expectedConcurrentCount}
-                trackedCount={visibleDashboard.cohort?.trackedCount ?? visibleDashboard.watchlist?.trackedCount}
-                maxSeatsAirborneEstimate={maxSeatsAirborneEstimate}
-                onEmergencyLevelTap={handleEmergencyLevelTap}
-              />
-            ) : (
-              <DataUnavailablePanel title="Dashboard Data Unavailable" message={dashboardErrorMessage} />
-            )}
+        <section className="sig-intro">
+          <div className="sig-intro-lead">
+            <div className="eyebrow">Airborne Anomaly Monitor · {cohortCopy.trackedNoun} cohort</div>
+            <h1>
+              EMERGENCY<br />
+              <span className="thin">LEVEL</span> {currentEmergencyLevel}<span className="thin">/5</span>
+            </h1>
           </div>
+          <p className="lede">{cohortCopy.heroCaption}</p>
+        </section>
+
+        <section className="sig-hero">
+          {hasDashboard ? (
+            <EmergencySummary
+              signal={compositeSignal}
+              latestSweep={formatTimestamp(visibleDashboard.current?.asOf)}
+              actualCount={compositeSignal?.actualConcurrentCount}
+              expectedCount={compositeSignal?.expectedConcurrentCount}
+              trackedCount={visibleDashboard.cohort?.trackedCount ?? visibleDashboard.watchlist?.trackedCount}
+              maxSeatsAirborneEstimate={maxSeatsAirborneEstimate}
+              onEmergencyLevelTap={handleEmergencyLevelTap}
+            />
+          ) : (
+            <DataUnavailablePanel title="Dashboard Data Unavailable" message={dashboardErrorMessage} />
+          )}
         </section>
 
         <section className="focus-map-grid">
@@ -6202,6 +6232,30 @@ function DashboardApp({ dashboardUrl = DASHBOARD_URL, enableCohortControls = fal
           <FaqCard />
           <UpdatesCard copy={cohortCopy} />
         </section>
+
+        <section className="sig-notify">
+          <div className="txt">
+            <h3>Get notified when the level rises.</h3>
+            <p>SMS or email alerts on threshold crossings. No noise — only when the model says it&apos;s unusual.</p>
+          </div>
+          <a className="notify-cta" href="/signup">SUBSCRIBE</a>
+        </section>
+
+        <footer className="sig-foot">
+          <span>
+            BUILT BY{' '}
+            <a href="https://www.instagram.com/kcimc/" target="_blank" rel="noreferrer">KYLE MCDONALD</a>
+          </span>
+          <span className="sep">/</span>
+          <a href="https://github.com/kylemcdonald/ews" target="_blank" rel="noreferrer">GITHUB</a>
+          <span className="sep">/</span>
+          <a href="https://t.me/apocalypse_ews" target="_blank" rel="noreferrer">TELEGRAM</a>
+          <span className="sep">/</span>
+          <a href="https://ews.kylemcdonald.net/rss.xml" target="_blank" rel="noreferrer">RSS</a>
+          <span className="sep">/</span>
+          <a href={DISCORD_BOT_URL} target="_blank" rel="noreferrer">DISCORD</a>
+          <span className="r">ANOMALY MONITOR FOR PUBLIC FLIGHT SIGNALS · NOT PROOF OF INTENT</span>
+        </footer>
       </main>
     )
   }
